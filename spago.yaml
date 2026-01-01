@@ -1,0 +1,21 @@
+package:
+  name: escape
+  dependencies:
+    - canvas
+    - console
+    - debug
+    - effect
+    - prelude
+    - tuples
+    - web-events
+    - web-html
+    - web-uievents
+  bundle:
+    module: CanvasApp
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 69.2.0
+  extraPackages: {}
