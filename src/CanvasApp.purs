@@ -12,6 +12,7 @@ import Data.Model (Model)
 import Data.GridLoc (GridLoc(..))
 import Data.Queue (Queue, enqueue, make)
 import Data.Traversable (traverse_)
+import Data.Tuple (Tuple(..))
 import Data.Types (Frame)
 import Data.World (mkWorld)
 import Effect (Effect)
@@ -23,6 +24,7 @@ import Web.Event.Event (EventType(..))
 import Web.Event.EventTarget (EventListener, addEventListener, eventListener)
 import Web.HTML (Window)
 import Web.HTML as HTML
+import Web.HTML.HTMLCanvasElement as Canvas
 import Web.HTML.Window as Window
 import Web.UIEvent.KeyboardEvent as KeyboardEvent
 
@@ -42,7 +44,8 @@ initialize win canvas inputQ = do
   ctx <- getContext2D canvas
   setFont ctx "16px monospace"
   registerKeyboardListener win inputQ
-  registerResizeListener win inputQ
+  registerResizeListener win canvas inputQ
+  resizeCanvas win canvas
   pure ctx
 
 registerKeyboardListener :: Window -> Ref.Ref (Queue InputEvent) -> Effect Unit
@@ -60,23 +63,45 @@ registerKeyboardListener win inputQ =
   in
     keyboardListenerEffect >>= \listener -> addEventListener (EventType "keydown") listener false $ Window.toEventTarget win
 
-registerResizeListener :: Window -> Ref.Ref (Queue InputEvent) -> Effect Unit
-registerResizeListener win inputQ =
+registerResizeListener :: Window -> CanvasElement -> Ref.Ref (Queue InputEvent) -> Effect Unit
+registerResizeListener win canvas inputQ =
   let
     resizeListenerEffect :: Effect EventListener
     resizeListenerEffect = eventListener \_ -> do
-      newWidth <- Window.innerWidth win
-      newHeight <- Window.innerHeight win
+      Tuple newWidth newHeight <- resizeCanvas win canvas
       Ref.modify_ (\q -> enqueue q (Resize newWidth newHeight)) inputQ
   in
     resizeListenerEffect >>= \listener -> addEventListener (EventType "resize") listener false $ Window.toEventTarget win
+
+resizeCanvas :: Window -> CanvasElement -> Effect (Tuple Int Int)
+resizeCanvas win canvas = do
+  windowWidth <- Window.innerWidth win
+  windowHeight <- Window.innerHeight win
+  let
+    Tuple newWidth newHeight = fitCanvasSize windowWidth windowHeight
+  Canvas.setWidth newWidth canvas
+  Canvas.setHeight newHeight canvas
+  pure $ Tuple newWidth newHeight
+
+fitCanvasSize :: Int -> Int -> Tuple Int Int
+fitCanvasSize windowWidth windowHeight =
+  let
+    targetWidth = 16
+    targetHeight = 9
+  in
+    if windowWidth * targetHeight >= windowHeight * targetWidth then
+      Tuple ((windowHeight * targetWidth) `div` targetHeight) windowHeight
+    else
+      Tuple windowWidth ((windowWidth * targetHeight) `div` targetWidth)
 
 gameLoop :: Window -> Context2D -> Ref.Ref (Queue InputEvent) -> Effect Unit
 gameLoop win ctx inputQ = initialModelEffect >>= loop
   where
   initialModelEffect = do
-    width <- Window.innerWidth win
-    height <- Window.innerHeight win
+    windowWidth <- Window.innerWidth win
+    windowHeight <- Window.innerHeight win
+    let
+      Tuple width height = fitCanvasSize windowWidth windowHeight
     pure { world: mkWorld, visibleWidth: width, visibleHeight: height, seed: 0, elapsed: 0 }
 
   loop :: Model -> Effect Unit
