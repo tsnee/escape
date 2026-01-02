@@ -9,14 +9,12 @@ import Data.Int (toNumber)
 import Data.Key (mapKey)
 import Data.Maybe (Maybe(..))
 import Data.Model (Model)
-import Data.Point (Point(..))
+import Data.GridLoc (GridLoc(..))
 import Data.Queue (Queue, enqueue, make)
 import Data.Traversable (traverse_)
-import Data.Tuple (Tuple(..))
 import Data.Types (Frame)
 import Data.World (mkWorld)
 import Effect (Effect)
-import Effect.Console (log)
 import Effect.Ref (write)
 import Effect.Ref as Ref
 import GameLogic (step, view)
@@ -30,24 +28,25 @@ import Web.UIEvent.KeyboardEvent as KeyboardEvent
 
 main :: Effect Unit
 main = do
+  win <- HTML.window
   elemM <- getCanvasElementById "canvas"
   case elemM of
-    Nothing -> log "This HTML does not contain a canvas element with id 'canvas'."
+    Nothing -> Window.alert "This HTML does not contain a canvas element with id 'canvas'." win
     Just canvas -> do
       inputQ <- Ref.new make
-      Tuple w ctx <- initialize canvas inputQ
-      gameLoop w ctx inputQ
+      ctx <- initialize win canvas inputQ
+      gameLoop win ctx inputQ
 
-initialize :: CanvasElement -> Ref.Ref (Queue InputEvent) -> Effect (Tuple Window Context2D)
-initialize canvas inputQ = do
-  w <- HTML.window
+initialize :: Window -> CanvasElement -> Ref.Ref (Queue InputEvent) -> Effect Context2D
+initialize win canvas inputQ = do
   ctx <- getContext2D canvas
   setFont ctx "16px monospace"
-  registerKeyboardListener w inputQ
-  pure $ Tuple w ctx
+  registerKeyboardListener win inputQ
+  registerResizeListener win inputQ
+  pure ctx
 
 registerKeyboardListener :: Window -> Ref.Ref (Queue InputEvent) -> Effect Unit
-registerKeyboardListener w inputQ =
+registerKeyboardListener win inputQ =
   let
     keyboardListenerEffect :: Effect EventListener
     keyboardListenerEffect = eventListener \evt ->
@@ -59,17 +58,30 @@ registerKeyboardListener w inputQ =
           in
             Ref.modify_ (\q -> enqueue q (KeyDown (mapKey key))) inputQ
   in
-    keyboardListenerEffect >>= \listener -> addEventListener (EventType "keydown") listener false $ Window.toEventTarget w
+    keyboardListenerEffect >>= \listener -> addEventListener (EventType "keydown") listener false $ Window.toEventTarget win
+
+registerResizeListener :: Window -> Ref.Ref (Queue InputEvent) -> Effect Unit
+registerResizeListener win inputQ =
+  let
+    resizeListenerEffect :: Effect EventListener
+    resizeListenerEffect = eventListener \_ -> do
+      newWidth <- Window.innerWidth win
+      newHeight <- Window.innerHeight win
+      Ref.modify_ (\q -> enqueue q (Resize newWidth newHeight)) inputQ
+  in
+    resizeListenerEffect >>= \listener -> addEventListener (EventType "resize") listener false $ Window.toEventTarget win
 
 gameLoop :: Window -> Context2D -> Ref.Ref (Queue InputEvent) -> Effect Unit
-gameLoop w ctx inputQ = loop initialModel
+gameLoop win ctx inputQ = initialModelEffect >>= loop
   where
-  initialWorld = mkWorld
-  initialModel = { world: initialWorld, seed: 0, elapsed: 0 }
+  initialModelEffect = do
+    width <- Window.innerWidth win
+    height <- Window.innerHeight win
+    pure { world: mkWorld, visibleWidth: width, visibleHeight: height, seed: 0, elapsed: 0 }
 
   loop :: Model -> Effect Unit
   loop model = do
-    clearRect ctx { height: 450.0, width: 800.0, x: 0.0, y: 0.0 }
+    clearRect ctx { x: 0.0, y: 0.0, width: toNumber model.visibleWidth, height: toNumber model.visibleHeight }
     q <- Ref.read inputQ
     -- log $ "InputQueue: " <> show q
     let
@@ -78,13 +90,13 @@ gameLoop w ctx inputQ = loop initialModel
     -- log $ "Frame: " <> show frame
     render ctx frame
     write make inputQ
-    void $ Window.requestAnimationFrame (loop model') w
+    void $ Window.requestAnimationFrame (loop model') win
 
 render :: Context2D -> Frame -> Effect Unit
 render ctx frame = traverse_ loop frame
   where
   loop :: Draw -> Effect Unit
-  loop Clear = fillRect ctx { x: 0.0, y: 0.0, width: 800.0, height: 450.0 }
-  loop (DrawText (Point x y) color s) = do
+  loop (Clear width height) = fillRect ctx { x: 0.0, y: 0.0, width, height }
+  loop (DrawText (GridLoc x y) color s) = do
     setFillStyle ctx $ toCss color
     fillText ctx s (toNumber x * 16.0) (toNumber y * 16.0)

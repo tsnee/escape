@@ -7,7 +7,7 @@ import Data.Show.Generic (genericShow)
 
 type RawKey = String
 
-data Key = Up | Down | Left | Right | Noop
+data Key = UpperLeft | Up | UpperRight | Right | LowerRight | Down | LowerLeft | Left | Noop
 
 derive instance Generic Key _
 instance showKey :: Show Key where
@@ -17,8 +17,12 @@ class Keymap where
   mapKey :: RawKey -> Key
 
 instance viKeymap :: Keymap where
+  mapKey "y" = UpperLeft
   mapKey "k" = Up
-  mapKey "j" = Down
-  mapKey "h" = Left
+  mapKey "u" = UpperRight
   mapKey "l" = Right
+  mapKey "n" = LowerRight
+  mapKey "j" = Down
+  mapKey "b" = LowerLeft
+  mapKey "h" = Left
   mapKey _ = Noop

@@ -1,5 +1,5 @@
 module Components.Position (Position(..)) where
 
-import Data.Point (Point(..))
+import Data.GridLoc (GridLoc)
 
-type Position = Point
+type Position = GridLoc

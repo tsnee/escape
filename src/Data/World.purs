@@ -5,7 +5,7 @@ import Components.Visible (Visible)
 import Data.Color (black, white)
 import Data.List.Lazy (List)
 import Data.List.Lazy as List
-import Data.Point (Point(..))
+import Data.GridLoc (GridLoc(..))
 
 type World =
   { entities :: List Int
@@ -16,6 +16,6 @@ type World =
 mkWorld :: World
 mkWorld =
   { entities: List.singleton (0)
-  , positions: [ Point 0 0 ]
+  , positions: [ GridLoc 0 0 ]
   , visibles: [ { glyph: '@', foreground: white, background: black } ]
   }

@@ -8,33 +8,37 @@ import Data.InputEvent (InputEvent(..))
 import Data.Key (Key(..))
 import Data.List.Lazy (foldl)
 import Data.Maybe (Maybe(..))
-import Data.Model (Model)
-import Data.Point (Point(..))
+import Data.Model (Model, resize)
+import Data.GridLoc (GridLoc(..))
 import Data.Queue (Queue, toList)
 import Data.String.CodeUnits as SCU
 import Data.Types (Frame)
 import Data.Unfoldable (fromMaybe)
-import Debug (spy)
 
 step :: Queue InputEvent -> Model -> Model
 step inputQ model = foldl f model (toList inputQ)
   where
   f :: Model -> InputEvent -> Model
+  f m (KeyDown UpperLeft) = g m (-1) (-1)
   f m (KeyDown Up) = g m 0 (-1)
-  f m (KeyDown Down) = g m 0 1
-  f m (KeyDown Left) = g m (-1) 0
+  f m (KeyDown UpperRight) = g m 1 (-1)
   f m (KeyDown Right) = g m 1 0
-  f m _ = m
+  f m (KeyDown LowerRight) = g m 1 1
+  f m (KeyDown Down) = g m 0 1
+  f m (KeyDown LowerLeft) = g m (-1) 1
+  f m (KeyDown Left) = g m (-1) 0
+  f m (KeyDown Noop) = m
+  f m (Resize w h) = do
+    resize m w h
 
   g :: Model -> Int -> Int -> Model
   g m dx dy =
     let
       pos = case head m.world.positions of
-        Just (Point x y) -> Point (x + dx) (y + dy)
-        Nothing -> Point 0 0
-      new = [ pos ]
+        Just (GridLoc x y) -> GridLoc (x + dx) (y + dy)
+        Nothing -> GridLoc 0 0
     in
-      { elapsed: m.elapsed + 1, seed: m.seed, world: { entities: m.world.entities, positions: new, visibles: m.world.visibles } }
+      m { elapsed = m.elapsed + 1, world = m.world { positions = [ pos ] } }
 
 view :: Model -> Frame
 view { world } = bind world.entities $ fromMaybe <<< drawEntity
