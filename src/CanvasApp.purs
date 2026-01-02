@@ -19,12 +19,11 @@ import Effect (Effect)
 import Effect.Ref (write)
 import Effect.Ref as Ref
 import GameLogic (step, view)
-import Graphics.Canvas (CanvasElement, Context2D, clearRect, fillRect, fillText, getCanvasElementById, getContext2D, setFillStyle, setFont)
+import Graphics.Canvas (CanvasElement, Context2D, clearRect, fillRect, fillText, getCanvasElementById, getContext2D, setCanvasHeight, setCanvasWidth, setFillStyle, setFont)
 import Web.Event.Event (EventType(..))
 import Web.Event.EventTarget (EventListener, addEventListener, eventListener)
 import Web.HTML (Window)
 import Web.HTML as HTML
-import Web.HTML.HTMLCanvasElement as Canvas
 import Web.HTML.Window as Window
 import Web.UIEvent.KeyboardEvent as KeyboardEvent
 
@@ -45,7 +44,7 @@ initialize win canvas inputQ = do
   setFont ctx "16px monospace"
   registerKeyboardListener win inputQ
   registerResizeListener win canvas inputQ
-  resizeCanvas win canvas
+  _ <- resizeCanvas win canvas
   pure ctx
 
 registerKeyboardListener :: Window -> Ref.Ref (Queue InputEvent) -> Effect Unit
@@ -78,13 +77,13 @@ resizeCanvas win canvas = do
   windowWidth <- Window.innerWidth win
   windowHeight <- Window.innerHeight win
   let
-    Tuple newWidth newHeight = fitCanvasSize windowWidth windowHeight
-  Canvas.setWidth newWidth canvas
-  Canvas.setHeight newHeight canvas
+    Tuple newWidth newHeight = maintainAspectRatio windowWidth windowHeight
+  setCanvasWidth canvas $ toNumber newWidth
+  setCanvasHeight canvas $ toNumber newHeight
   pure $ Tuple newWidth newHeight
 
-fitCanvasSize :: Int -> Int -> Tuple Int Int
-fitCanvasSize windowWidth windowHeight =
+maintainAspectRatio :: Int -> Int -> Tuple Int Int
+maintainAspectRatio windowWidth windowHeight =
   let
     targetWidth = 16
     targetHeight = 9
@@ -92,7 +91,7 @@ fitCanvasSize windowWidth windowHeight =
     if windowWidth * targetHeight >= windowHeight * targetWidth then
       Tuple ((windowHeight * targetWidth) `div` targetHeight) windowHeight
     else
-      Tuple windowWidth ((windowWidth * targetHeight) `div` targetWidth)
+      Tuple windowWidth $ (windowWidth * targetHeight) `div` targetWidth
 
 gameLoop :: Window -> Context2D -> Ref.Ref (Queue InputEvent) -> Effect Unit
 gameLoop win ctx inputQ = initialModelEffect >>= loop
@@ -101,7 +100,7 @@ gameLoop win ctx inputQ = initialModelEffect >>= loop
     windowWidth <- Window.innerWidth win
     windowHeight <- Window.innerHeight win
     let
-      Tuple width height = fitCanvasSize windowWidth windowHeight
+      Tuple width height = maintainAspectRatio windowWidth windowHeight
     pure { world: mkWorld, visibleWidth: width, visibleHeight: height, seed: 0, elapsed: 0 }
 
   loop :: Model -> Effect Unit
