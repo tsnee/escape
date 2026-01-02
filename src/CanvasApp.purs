@@ -75,18 +75,33 @@ registerResizeListener win canvas inputQ =
 
 resizeCanvas :: Window -> CanvasElement -> Effect (Tuple Int Int)
 resizeCanvas win canvas = do
-  newWidth <- Window.innerWidth win
-  newHeight <- Window.innerHeight win
+  windowWidth <- Window.innerWidth win
+  windowHeight <- Window.innerHeight win
+  let
+    Tuple newWidth newHeight = fitCanvasSize windowWidth windowHeight
   Canvas.setWidth newWidth canvas
   Canvas.setHeight newHeight canvas
   pure $ Tuple newWidth newHeight
+
+fitCanvasSize :: Int -> Int -> Tuple Int Int
+fitCanvasSize windowWidth windowHeight =
+  let
+    targetWidth = 16
+    targetHeight = 9
+  in
+    if windowWidth * targetHeight >= windowHeight * targetWidth then
+      Tuple ((windowHeight * targetWidth) `div` targetHeight) windowHeight
+    else
+      Tuple windowWidth ((windowWidth * targetHeight) `div` targetWidth)
 
 gameLoop :: Window -> Context2D -> Ref.Ref (Queue InputEvent) -> Effect Unit
 gameLoop win ctx inputQ = initialModelEffect >>= loop
   where
   initialModelEffect = do
-    width <- Window.innerWidth win
-    height <- Window.innerHeight win
+    windowWidth <- Window.innerWidth win
+    windowHeight <- Window.innerHeight win
+    let
+      Tuple width height = fitCanvasSize windowWidth windowHeight
     pure { world: mkWorld, visibleWidth: width, visibleHeight: height, seed: 0, elapsed: 0 }
 
   loop :: Model -> Effect Unit
