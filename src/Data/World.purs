@@ -1,24 +1,38 @@
-module Data.World (World(..), mkWorld) where
+module Data.World (World(..), WorldBuilder(..), build, empty) where
 
 import Prelude
 
-import Components.Position (Position(..))
+import Component (Component, mkComponent)
+import Components.Positioned (Positioned)
 import Components.Visible (Visible)
-import Data.Color (black, white)
 import Data.Entity (Entity(..))
-import Data.GridLoc (GridLoc(..))
-import ParseMap (extractEntitiesFromMap, extractPositionsFromMap, extractVisiblesFromMap, parseMap)
+import Data.List.Lazy (nil)
+import Data.Queue (Queue(..))
+import Data.Tuple (Tuple)
+import Data.Types (PlayerControlled)
 
 type World =
-  { entities ∷ Array Entity
-  , positions ∷ Array Position
-  , visibles ∷ Array Visible
+  { entities ∷ Component Unit
+  , players ∷ Component PlayerControlled
+  , positions ∷ Component Positioned
+  , visibles ∷ Component Visible
   }
 
-mkWorld ∷ String → World
-mkWorld rawMap = { entities, positions, visibles }
+type WorldBuilder =
+  { entities ∷ Queue (Tuple Entity Unit)
+  , players ∷ Queue (Tuple Entity PlayerControlled)
+  , positions ∷ Queue (Tuple Entity Positioned)
+  , visibles ∷ Queue (Tuple Entity Visible)
+  , nextEntity ∷ Entity
+  }
+
+empty ∷ WorldBuilder
+empty = { entities: Queue nil, players: Queue nil, positions: Queue nil, visibles: Queue nil, nextEntity: Entity 0 }
+
+build ∷ WorldBuilder → World
+build builder = { entities, players, positions, visibles }
   where
-  map = parseMap rawMap
-  entities = extractEntitiesFromMap map <> [ Entity 0 ]
-  positions = extractPositionsFromMap map <> [ Position (GridLoc 0 0) ]
-  visibles = extractVisiblesFromMap map <> [ { glyph: '@', foreground: white, background: black } ]
+  entities = mkComponent builder.entities
+  players = mkComponent builder.players
+  positions = mkComponent builder.positions
+  visibles = mkComponent builder.visibles

@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Color (toCss)
 import Data.Draw (Draw(..))
+import Data.Either (Either(..))
 import Data.GridLoc (GridLoc(..))
 import Data.InputEvent (InputEvent(..))
 import Data.Int (toNumber)
@@ -14,7 +15,7 @@ import Data.Queue (Queue, emptyQueue, enqueue)
 import Data.Traversable (traverse_)
 import Data.Tuple (Tuple(..))
 import Data.Types (Frame)
-import Data.World (mkWorld)
+import Data.World (build, empty)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -34,6 +35,7 @@ import Graphics.Canvas
   , setFont
   )
 import Load (loadText)
+import ParseMap (parseMap)
 import Web.Event.Event (EventType(..))
 import Web.Event.EventTarget (EventListener, addEventListener, eventListener)
 import Web.HTML (Window)
@@ -58,7 +60,7 @@ initialize win canvas inputQ = do
   setFont ctx "16px monospace"
   registerKeyboardListener win inputQ
   registerResizeListener win canvas inputQ
-  _ ← resizeCanvas win canvas
+  void $ resizeCanvas win canvas
   pure ctx
 
 registerKeyboardListener ∷ Window → Ref.Ref (Queue InputEvent) → Effect Unit
@@ -113,9 +115,14 @@ launchGame win ctx inputQ = launchAff_ do
   map ← loadText "./4thwest.txt"
   windowWidth ← liftEffect $ Window.innerWidth win
   windowHeight ← liftEffect $ Window.innerHeight win
+  world ← liftEffect $ case parseMap map of
+    Left err → bind (Window.alert err win) \_ → pure $ build empty
+    Right w → pure w
   let
-    Tuple width height = maintainAspectRatio windowWidth windowHeight
-    initialModel = { world: mkWorld map, visibleWidth: width, visibleHeight: height, seed: 0, elapsed: 0 }
+    Tuple visibleWidth visibleHeight = maintainAspectRatio windowWidth windowHeight
+    seed = 0
+    elapsed = 0
+    initialModel = { world, visibleWidth, visibleHeight, seed, elapsed }
   liftEffect $ gameLoop win ctx inputQ initialModel
 
 gameLoop ∷ Window → Context2D → Ref.Ref (Queue InputEvent) → Model → Effect Unit

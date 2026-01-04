@@ -2,14 +2,15 @@ module Systems.Movement (movement) where
 
 import Prelude
 
-import Components.Position (Position(..))
-import Data.Array (snoc, updateAt, (!!))
-import Data.Entity (Entity, getIndex)
+import Component (entities, lookup, replaceAt)
+import Components.Positioned (Positioned(..))
+import Data.Array (snoc)
+import Data.Entity (Entity)
 import Data.GridLoc (GridLoc(..))
 import Data.InputEvent (InputEvent(..))
 import Data.Key (Key(..))
 import Data.List.Lazy (foldl)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Model (Model)
 import Data.Queue (Queue, toArray)
 import Data.Types (Action(..), Result(..))
@@ -26,15 +27,18 @@ execute _ actions = bind actions f
   where
   f ∷ Action → Array Result
   f (Move e loc) = [ Moved e loc ]
+  f _ = []
 
 resolve ∷ Phase (Array Result) Model
 resolve model results = foldl f model results
   where
   f ∷ Model → Result → Model
-  f m (Moved e loc) = m
-    { world = model.world
-        { positions = fromMaybe model.world.positions $ updateAt (getIndex e) (Position loc) model.world.positions }
-    }
+  f m (Moved e loc) =
+    m
+      { world = m.world
+          { positions = replaceAt e (Positioned loc) m.world.positions }
+      }
+  f m _ = m
 
 handleKeypress ∷ Model → InputEvent → Array Action
 handleKeypress model (KeyDown UpperLeft) = act model (-1) (-1)
@@ -48,9 +52,19 @@ handleKeypress model (KeyDown Left) = act model (-1) 0
 handleKeypress _ _ = []
 
 act ∷ Model → Int → Int → Array Action
-act model dx dy = foldl f [] model.world.entities
+act model dx dy = foldl movePlayer [] allEntities
   where
-  f ∷ Array Action → Entity → Array Action
-  f acc e = case model.world.positions !! (getIndex e) of
-    Just (Position (GridLoc x y)) → snoc acc $ Move e $ GridLoc (x + dx) (y + dy)
-    Nothing → acc
+  allEntities = entities model.world.entities
+
+  movePlayer ∷ Array Action → Entity → Array Action
+  movePlayer acc = fromMaybe acc <<< maybeMovePlayer acc
+
+  maybeMovePlayer ∷ Array Action → Entity → Maybe (Array Action)
+  maybeMovePlayer acc e = do
+    lookup e model.world.players
+    Positioned (GridLoc x y) ← lookup e model.world.positions
+    let
+      newLoc = GridLoc (x + dx) (y + dy)
+      action = Move e newLoc
+      acc' = snoc acc action
+    pure acc'

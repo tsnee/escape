@@ -2,18 +2,19 @@ module GameLogic (step, view) where
 
 import Prelude
 
-import Components.Position (Position(..))
-import Data.Array ((!!))
+import Component (entities, lookup)
+import Components.Positioned (Positioned(..))
+import Data.Array (singleton)
 import Data.Draw (Draw(..))
-import Data.Entity (Entity, getIndex)
+import Data.Entity (Entity)
 import Data.InputEvent (InputEvent)
 import Data.List.Lazy (foldl)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Model (Model)
 import Data.Queue (Queue)
 import Data.String.CodeUnits as SCU
+import Data.Traversable (foldMap)
 import Data.Types (Action, Frame, Result)
-import Data.Unfoldable (fromMaybe)
 import System (System)
 import Systems (systems)
 
@@ -32,13 +33,16 @@ execute ∷ Model → Array Action → Array Result → System → Array Result
 execute model actions acc system = acc <> system.execute model actions
 
 resolve ∷ Model → Array Result → Model → System → Model
-resolve model results _ system = system.resolve model results
+resolve _ results model system = system.resolve model results
 
 view ∷ Model → Frame
-view { world } = bind world.entities $ fromMaybe <<< drawEntity
+view { world } = toFrame entitySet
   where
+  entitySet = entities world.entities
+  toFrame = foldMap $ maybe [] singleton <<< drawEntity
+
   drawEntity ∷ Entity → Maybe Draw
   drawEntity e = do
-    Position point ← world.positions !! (getIndex e)
-    visible ← world.visibles !! (getIndex e)
+    Positioned point ← lookup e world.positions
+    visible ← lookup e world.visibles
     pure $ DrawText point visible.foreground $ SCU.singleton visible.glyph

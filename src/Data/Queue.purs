@@ -1,14 +1,15 @@
-module Data.Queue (Queue, enqueue, emptyQueue, toArray, toList) where
+module Data.Queue (Queue(..), enqueue, emptyQueue, toArray, toList) where
 
 import Prelude
 
 import Data.Array (fromFoldable)
+import Data.Foldable (class Foldable)
 import Data.List.Lazy (List, nil, reverse, (:))
 
-data Queue a = Queue (List a)
+newtype Queue a = Queue (List a)
 
-instance showQueue ∷ Show a ⇒ Show (Queue a) where
-  show (Queue xs) = show xs
+derive newtype instance foldableQueue ∷ Foldable Queue
+derive newtype instance showQueue ∷ Show a ⇒ Show (Queue a)
 
 emptyQueue ∷ ∀ a. Queue a
 emptyQueue = Queue nil

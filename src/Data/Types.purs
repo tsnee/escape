@@ -1,11 +1,14 @@
-module Data.Types (Action(..), Frame, Result(..), Seed, TurnCount) where
+module Data.Types (Action(..), Frame, PlayerControlled, Result(..), Seed, TurnCount) where
+
+import Prelude
 
 import Data.Draw (Draw)
 import Data.Entity (Entity)
 import Data.GridLoc (GridLoc)
 
-data Action = Move Entity GridLoc
+data Action = Move Entity GridLoc | ResizeCanvas Int Int
 type Frame = Array Draw
-data Result = Moved Entity GridLoc
+type PlayerControlled = Unit
+data Result = Moved Entity GridLoc | ResizedCanvas Int Int
 type Seed = Int
 type TurnCount = Int
