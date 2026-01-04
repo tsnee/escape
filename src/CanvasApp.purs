@@ -68,7 +68,7 @@ registerResizeListener win canvas inputQ =
     resizeListenerEffect :: Effect EventListener
     resizeListenerEffect = eventListener \_ -> do
       Tuple newWidth newHeight <- resizeCanvas win canvas
-      Ref.modify_ (\q -> enqueue q (Resize newWidth newHeight)) inputQ
+      Ref.modify_ (\q -> enqueue q (DragResize newWidth newHeight)) inputQ
   in
     resizeListenerEffect >>= \listener -> addEventListener (EventType "resize") listener false $ Window.toEventTarget win
 
@@ -107,11 +107,9 @@ gameLoop win ctx inputQ = initialModelEffect >>= loop
   loop model = do
     clearRect ctx { x: 0.0, y: 0.0, width: toNumber model.visibleWidth, height: toNumber model.visibleHeight }
     q <- Ref.read inputQ
-    -- log $ "InputQueue: " <> show q
     let
       model' = step q model
       frame = view model'
-    -- log $ "Frame: " <> show frame
     render ctx frame
     write make inputQ
     void $ Window.requestAnimationFrame (loop model') win

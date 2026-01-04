@@ -8,7 +8,7 @@ import Data.Key (Key)
 
 data InputEvent
   = KeyDown Key
-  | Resize Int Int
+  | DragResize Int Int
 
 derive instance genericInputEvent :: Generic InputEvent _
 instance showInputEvent :: Show InputEvent where

@@ -1,10 +1,12 @@
 package:
   name: escape
   dependencies:
+    - aff
     - canvas
     - console
     - debug
     - effect
+    - fetch
     - prelude
     - tuples
     - web-events

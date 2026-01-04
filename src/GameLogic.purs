@@ -2,51 +2,45 @@ module GameLogic (step, view) where
 
 import Prelude
 
-import Data.Array (head, (!!))
+import Components.Position (Position(..))
+import Data.Action (Action)
+import Data.Array ((!!))
 import Data.Draw (Draw(..))
-import Data.InputEvent (InputEvent(..))
-import Data.Key (Key(..))
+import Data.InputEvent (InputEvent)
 import Data.List.Lazy (foldl)
-import Data.Maybe (Maybe(..))
-import Data.Model (Model, resize)
-import Data.GridLoc (GridLoc(..))
-import Data.Queue (Queue, toList)
+import Data.Maybe (Maybe)
+import Data.Model (Model)
+import Data.Queue (Queue)
+import Data.Result (Result)
 import Data.String.CodeUnits as SCU
 import Data.Types (Frame)
 import Data.Unfoldable (fromMaybe)
+import Data.Entity (Entity, getIndex)
+import System (System)
+import Systems (systems)
 
 step :: Queue InputEvent -> Model -> Model
-step inputQ model = foldl f model (toList inputQ)
-  where
-  f :: Model -> InputEvent -> Model
-  f m (KeyDown UpperLeft) = g m (-1) (-1)
-  f m (KeyDown Up) = g m 0 (-1)
-  f m (KeyDown UpperRight) = g m 1 (-1)
-  f m (KeyDown Right) = g m 1 0
-  f m (KeyDown LowerRight) = g m 1 1
-  f m (KeyDown Down) = g m 0 1
-  f m (KeyDown LowerLeft) = g m (-1) 1
-  f m (KeyDown Left) = g m (-1) 0
-  f m (KeyDown Noop) = m
-  f m (Resize w h) = do
-    resize m w h
+step inputQ model =
+  let
+    actions = foldl (plan model inputQ) [] systems
+    results = foldl (execute model actions) [] systems
+  in
+    foldl (resolve model results) model systems
 
-  g :: Model -> Int -> Int -> Model
-  g m dx dy =
-    let
-      pos = case head m.world.positions of
-        Just (GridLoc x y) -> GridLoc (x + dx) (y + dy)
-        Nothing -> GridLoc 0 0
-    in
-      m { elapsed = m.elapsed + 1, world = m.world { positions = [ pos ] } }
+plan :: Model -> Queue InputEvent -> Array Action -> System -> Array Action
+plan model inputQ acc system = acc <> system.plan model inputQ
+
+execute :: Model -> Array Action -> Array Result -> System -> Array Result
+execute model actions acc system = acc <> system.execute model actions
+
+resolve :: Model -> Array Result -> Model -> System -> Model
+resolve model results _ system = system.resolve model results
 
 view :: Model -> Frame
 view { world } = bind world.entities $ fromMaybe <<< drawEntity
   where
-  drawEntity :: Int -> Maybe Draw
-  drawEntity i = do
-    point <- world.positions !! i
-    -- point <- spy "Positions " $ world.positions !! i
-    visible <- world.visibles !! i
-    -- visible <- spy "Visibles " $ world.visibles !! i
+  drawEntity :: Entity -> Maybe Draw
+  drawEntity e = do
+    Position point <- world.positions !! (getIndex e)
+    visible <- world.visibles !! (getIndex e)
     pure $ DrawText point visible.foreground $ SCU.singleton visible.glyph
