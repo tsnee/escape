@@ -10,13 +10,13 @@ type RawKey = String
 data Key = UpperLeft | Up | UpperRight | Right | LowerRight | Down | LowerLeft | Left | Noop
 
 derive instance Generic Key _
-instance showKey :: Show Key where
+instance showKey ∷ Show Key where
   show = genericShow
 
 class Keymap where
-  mapKey :: RawKey -> Key
+  mapKey ∷ RawKey → Key
 
-instance viKeymap :: Keymap where
+instance viKeymap ∷ Keymap where
   mapKey "y" = UpperLeft
   mapKey "k" = Up
   mapKey "u" = UpperRight

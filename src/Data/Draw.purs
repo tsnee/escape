@@ -11,6 +11,6 @@ data Draw
   = Clear Number Number
   | DrawText GridLoc Color String
 
-derive instance genericDraw :: Generic Draw _
-instance showDraw :: Show Draw where
+derive instance genericDraw ∷ Generic Draw _
+instance showDraw ∷ Show Draw where
   show = genericShow
